@@ -1,10 +1,10 @@
-﻿# dsh-workspace-folders
+# dsh-workspace-folders
 
 > 给每个 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 对话一个**专属工作子文件夹**，
 > 同时**保住主文件夹的 system prompt 注入**，跨目录访问**逐次申请审批**，
 > 并在会话结束后**归档**、把上下文**交接**给下一个对话。
 
-[![tests](https://img.shields.io/badge/tests-731%20assertions-brightgreen)](#测试)
+[![tests](https://img.shields.io/badge/tests-767%20assertions-brightgreen)](#测试)
 [![node](https://img.shields.io/badge/node-%3E%3D20-blue)](package.json)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -207,8 +207,8 @@ ctx.approval.request({ agent, toolName, reason })
 
 ## 安装
 
-> **当前版本尚未发布到 npm**（`private: true`），因此
-> **`dsh plugin add dsh-workspace-folders` 不可用** —— 只能用源码挂载。
+> **尚未发布到 npm**，因此 **`dsh plugin add dsh-workspace-folders` 不可用**
+> —— 只能用源码挂载。
 > 完整步骤、排错与卸载见 **[`docs/INSTALL.md`](docs/INSTALL.md)**。
 
 ### 前置条件
@@ -217,6 +217,44 @@ ctx.approval.request({ agent, toolName, reason })
 - Node.js `>= 20`
 - 审批策略为 `ask`（即 `workspace-write` 模式）—— 归档卡片需要它才能弹出。
   `danger-full-access` 会把策略强制为 `never`，卡片不会出现。
+
+### ★ DSH 版本适配（升级 DSH 后请跑一次）
+
+DSH 发新版后，**本插件是否还能用**需要重新确认。为此提供了
+一条命令：
+
+```bash
+python scripts/dsh_update.py            # 检测 + 验证（不改任何东西）
+python scripts/dsh_update.py --apply    # 验证通过 → 更新 README/package.json 并提交
+python scripts/dsh_update.py --release  # 额外打 tag 发 GitHub Release
+```
+
+它做三件事：
+
+| 步 | 做什么 | 说明 |
+|---|---|---|
+| ① **检测** | 对比本机 DSH 与 npm 上的 `latest` / `next` / `alpha` | **只检测，不自动升级** |
+| ② **验证** | 见下表的三层 | 无论有没有更新**都会跑** |
+| ③ **更新** | 版本要求写进 README 与 `package.json` | 可用→提交；不可用→发 prerelease 记录问题 |
+
+**三层验证**（`python scripts/verify_plugin.py`）：
+
+| 层 | 验什么 | 为什么必须有 |
+|---|---|---|
+| ① 服务存在性 | 插件 `inject` 的 9 个 Cordis 服务是否仍有插件提供 | 服务没了，Cordis 会让插件**永远等待** —— "装上了但什么都不干"，最隐蔽的坏法 |
+| ② 真实装配 | 在**真 Cordis Context** 里 `apply()` 一次 | 契约错了这里必炸（历史上崩过两次，都发生在这一层） |
+| ③ 全量断言 | 767 项 | 业务逻辑回归 |
+
+> **为什么本插件通常能跨版本活下来**：它**不 import 任何
+> `@deepseek-ai/*` 包**，只依赖 Cordis 的**服务名与调用约定**。
+> 所以"依赖版本不匹配"这类问题不存在 —— 唯一的风险是服务契约变了，
+> 而那正是上面①②两层在盯的东西。
+
+**绝不自动升级 DSH。** 升级时机是用户的决定（可能正在跑长任务），
+而且本工作区里记过「DSH 升级打断 Tailscale 代理链路」的具体坑。
+脚本只负责**告诉你事实**。
+
+`DSH-VERIFIED.json` 记录最后一次真实验证的目标版本与时戳。
 
 ### 步骤
 
@@ -447,7 +485,7 @@ ctx.workspaceRegistry.archivedSessionIds          // 已归档集合
 npm run check
 ```
 
-**731 项断言**，覆盖 27 个套件：
+**767 项断言**，覆盖 28 个套件：
 
 | 套件 | 断言数 | 覆盖 |
 |---|---|---|
@@ -466,6 +504,7 @@ npm run check
 | `check-bind-route.js` | 34 | **写路由：路径逃逸、体上限、围栏、fail-closed、绑定已存在目录不改名** |
 | `check-picker.js` | 80 | **直接驱动 client.js 的真组件：点击、防连点、占用态视觉、新建工作文件夹、重开对话不追问、布局几何** |
 | `check-install.js` | 15 | **按真实 loader 路径重放一次安装** |
+| `check-dsh-update.js` | 36 | **DSH 版本适配脚本：版本比较语义、README 正则、Release notes 两种形态、token 不泄漏** |
 | `check-live.js` | 15 | **真实加载后真的执行两个斜杠命令 + 两条路由** |
 | `check-restart-would-fix.js` | 8 | **装配验证：重启后 /bind 真的会注册** |
 | `check-rebind.js` | 25 | **改绑：严格单一归属、不自建重复目录、隐藏插件自身** |

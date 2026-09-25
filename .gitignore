@@ -29,3 +29,9 @@ _probe/
 INHERITED.md
 cordis.patch.yml.backup-*
 *.before-merge
+
+# Python 产物
+__pycache__/
+*.pyc
+__py_*.txt
+RELEASE-NOTES*.md

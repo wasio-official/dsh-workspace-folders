@@ -50,6 +50,7 @@ const SUITES = [
   'check-naming-ascii.js',
   'check-bind-e2e.js',
   'check-install.js',
+  'check-dsh-update.js',
 ];
 
 /**

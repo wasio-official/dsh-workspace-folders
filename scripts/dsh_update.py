@@ -53,6 +53,23 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 PLUGIN_ROOT = HERE.parent
 
+# 复用 github_release.py 的版本号推导，避免两处逻辑漂移。
+sys.path.insert(0, str(HERE))
+try:
+    from github_release import next_tag  # noqa: E402
+except ImportError:  # pragma: no cover - 文件缺失时降级
+    def next_tag(current: str) -> str:
+        """降级实现。
+
+        @param current: 当前版本。
+        @returns: 下一个 patch 版本。
+        """
+        parts = current.strip().lstrip("v").split(".")
+        try:
+            return f"v{parts[0]}.{parts[1]}.{int(parts[2]) + 1}"
+        except (IndexError, ValueError):
+            return "v0.1.1"
+
 VERIFIED_FILE = PLUGIN_ROOT / "DSH-VERIFIED.json"
 README = PLUGIN_ROOT / "README.md"
 PACKAGE_JSON = PLUGIN_ROOT / "package.json"
@@ -139,13 +156,23 @@ def update_readme_requirement(dsh_version: str, node_version: str,
     if n:
         changes.append(f"正文断言数 → {assertions}")
 
-    # DSH 版本要求（形如 `0.1.5-rc.1` 的明文声明）
+    # DSH 版本要求。
+    #
+    # ⚠️ README 里的实际写法是 `- DSH \`0.1.5-rc.1\` 或更高`，
+    #    所以锚定「行首的 `- DSH ` + 反引号里的版本号」。
+    #    早期版本我写成匹配 `DSH 版本...`，**根本匹配不到**，
+    #    改了个寂寞。真正抓住它的是下面这条自检：改完必须能读回新值。
     text, n = re.subn(
-        r"(DSH\s*版本[^\n]*?`)(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)(`)",
-        lambda m: m.group(1) + dsh_version + m.group(3), text,
+        r"(^-\s*DSH\s*`)(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)(`)",
+        lambda m: m.group(1) + dsh_version + m.group(3),
+        text, flags=re.MULTILINE,
     )
     if n:
-        changes.append(f"README 里的 DSH 版本 → {dsh_version}")
+        changes.append(f"README 的 DSH 版本要求 → {dsh_version}")
+    else:
+        # ★ 匹配失败必须**显式报出来**，不能静默跳过 ——
+        #   否则"更新了 README"是假的，而人不会去看 diff。
+        changes.append("⚠️ README 里没找到 DSH 版本要求那一行（正则未命中）")
 
     if text != original:
         README.write_text(text, encoding="utf-8")
@@ -278,7 +305,9 @@ def main(argv: list[str] | None = None) -> int:
     """
     ap = argparse.ArgumentParser(description="DSH 版本适配：检测 → 验证 → 更新 → 发版")
     ap.add_argument("--apply", action="store_true", help="验证通过后更新文档并提交")
-    ap.add_argument("--release", action="store_true", help="打 tag 并发 GitHub Release")
+    ap.add_argument("--release", action="store_true",
+                    help="打 tag 并发 GitHub Release（需要 GITHUB_TOKEN）")
+    ap.add_argument("--push", action="store_true", help="随 --release 一起推送 main")
     ap.add_argument("--fast", action="store_true", help="跳过全量断言（仅快速自查）")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     args = ap.parse_args(argv)
@@ -376,7 +405,50 @@ def main(argv: list[str] | None = None) -> int:
     out["dsh"] = local
     out["assertions"] = 731
     out["suites"] = 27
-    out["releaseNotes"] = make_release_notes(vres, ver, usable)
+    notes = make_release_notes(vres, ver, usable)
+    out["releaseNotes"] = notes
+
+    # ── 4. 推送 / 发版 ──
+    #
+    # ★ 这一步**只在显式 --release 时**做，而且要 token。
+    #   刻意不自动 push：把"改动本地"和"改动远端"分开，
+    #   出错时容易回退，也避免脚本在你没准备时动了公开仓库。
+    if args.release:
+        if not args.json:
+            print("═" * 50)
+            print("④ 推送与发版")
+            print("═" * 50)
+
+        # 先把 release notes 落盘，交给 github_release.py 读。
+        notes_file = PLUGIN_ROOT / "RELEASE-NOTES.md"
+        notes_file.write_text(notes, encoding="utf-8")
+
+        # 版本号：不可用时也发，但要标 prerelease —— 让使用者一眼看出
+        # "这不是一个可用版本"，而不是以为升级就能用。
+        pkg = read_json(PACKAGE_JSON)
+        tag = next_tag(pkg.get("version", "0.1.0"))
+        title = (f"针对 DSH {local} 验证通过" if usable
+                 else f"⚠️ DSH {local} 验证**失败**（跟踪中）")
+
+        rel_args = ["--tag", tag, "--notes-file", str(notes_file), "--title", title]
+        if not usable:
+            rel_args.append("--prerelease")
+        if args.push:
+            rel_args = ["--push"] + rel_args
+
+        code2, rel = py("github_release.py", *rel_args, timeout=300)
+        rel_dict = rel if isinstance(rel, dict) else {"raw": rel}
+        out["steps"]["release"] = rel_dict
+        if not args.json:
+            for key, val in rel_dict.items():
+                if not isinstance(val, dict):
+                    continue
+                if val.get("ok"):
+                    print(f"  ✓ {key}" + (f": {val.get('url')}" if val.get("url") else ""))
+                else:
+                    print(f"  ✗ {key}: "
+                          f"{val.get('error') or val.get('detail') or str(val.get('output'))[:200]}")
+            print()
 
     if args.json:
         print(json.dumps(out, ensure_ascii=False, indent=2))

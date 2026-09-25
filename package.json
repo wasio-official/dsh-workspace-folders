@@ -43,7 +43,7 @@
     "check:install": "node scripts/check-install.js",
     "count": "node scripts/count-assertions.js",
     "check:readme": "node scripts/check-readme.js",
-    "check": "node scripts/check-core.js && node scripts/check-instructions.js && node scripts/check-marker-strategy.js && node scripts/check-nopatch.js && node scripts/check-load.js && node scripts/check-journal.js && node scripts/check-archiver.js && node scripts/check-inherit.js && node scripts/check-client.js && node scripts/check-client-discovery.js && node scripts/check-client-load.js && node scripts/check-picker.js && node scripts/check-e2e.js && node scripts/check-inject.js && node scripts/check-live.js && node scripts/check-target.js && node scripts/check-tools-target.js && node scripts/check-route.js && node scripts/check-bind-route.js && node scripts/check-restart-would-fix.js && node scripts/check-rebind.js && node scripts/check-persistence.js && node scripts/check-naming-ascii.js && node scripts/check-bind-e2e.js && node scripts/check-contracts.js && node scripts/check-install.js && node scripts/check-readme.js",
+    "check": "node scripts/check-core.js && node scripts/check-instructions.js && node scripts/check-marker-strategy.js && node scripts/check-nopatch.js && node scripts/check-load.js && node scripts/check-journal.js && node scripts/check-archiver.js && node scripts/check-inherit.js && node scripts/check-client.js && node scripts/check-client-discovery.js && node scripts/check-client-load.js && node scripts/check-picker.js && node scripts/check-e2e.js && node scripts/check-inject.js && node scripts/check-live.js && node scripts/check-target.js && node scripts/check-tools-target.js && node scripts/check-route.js && node scripts/check-bind-route.js && node scripts/check-restart-would-fix.js && node scripts/check-rebind.js && node scripts/check-persistence.js && node scripts/check-naming-ascii.js && node scripts/check-bind-e2e.js && node scripts/check-contracts.js && node scripts/check-install.js && node scripts/check-dsh-update.js && node scripts/check-readme.js",
     "check:live": "node scripts/check-live.js",
     "check:contracts": "node scripts/check-contracts.js",
     "check:target": "node scripts/check-target.js",
@@ -60,7 +60,11 @@
     "diagnose": "node scripts/diagnose-live.js",
     "check:rebind": "node scripts/check-rebind.js",
     "check:persistence": "node scripts/check-persistence.js",
-    "check:naming": "node scripts/check-naming-ascii.js"
+    "check:naming": "node scripts/check-naming-ascii.js",
+    "check:dsh-update": "node scripts/check-dsh-update.js",
+    "dsh:check": "python scripts/dsh_version_check.py",
+    "dsh:verify": "python scripts/verify_plugin.py",
+    "dsh:update": "python scripts/dsh_update.py"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",

@@ -1,5 +1,5 @@
 {
-  "total": 731,
+  "total": 767,
   "counts": {
     "check-core.js": 61,
     "check-instructions.js": 0,
@@ -26,7 +26,8 @@
     "check-persistence.js": 23,
     "check-naming-ascii.js": 29,
     "check-bind-e2e.js": 29,
-    "check-install.js": 15
+    "check-install.js": 15,
+    "check-dsh-update.js": 36
   },
-  "generatedAt": "2026-09-25T08:48:25.098Z"
+  "generatedAt": "2026-09-25T13:22:38.739Z"
 }
