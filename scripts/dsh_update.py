@@ -309,13 +309,21 @@ def main(argv: list[str] | None = None) -> int:
                     help="打 tag 并发 GitHub Release（需要 GITHUB_TOKEN）")
     ap.add_argument("--push", action="store_true", help="随 --release 一起推送 main")
     ap.add_argument("--fast", action="store_true", help="跳过全量断言（仅快速自查）")
+    ap.add_argument("--proxy", default=os.environ.get("HTTPS_PROXY") or "http://127.0.0.1:9910",
+                    help="HTTP 代理（本机直连 GitHub/npm 不通，默认走 9910）")
+    ap.add_argument("--no-proxy", action="store_true", help="强制直连")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     args = ap.parse_args(argv)
 
     out: dict = {"steps": {}}
 
+    # ★ 代理要**显式透传给每个子脚本**。
+    #   子进程不会自动继承父进程的 argparse 结果，而本机直连
+    #   GitHub / npm 一律超时（实测），所以漏传会让"发版"这一步静默失败。
+    net_args: list[str] = ["--no-proxy"] if args.no_proxy else ["--proxy", args.proxy]
+
     # ── 1. 检测 ──
-    code, ver = py("dsh_version_check.py")
+    code, ver = py("dsh_version_check.py", *net_args)
     out["steps"]["detect"] = ver if isinstance(ver, dict) else {"raw": ver}
     if not isinstance(ver, dict) or not ver.get("ok"):
         if not args.json:
@@ -430,7 +438,8 @@ def main(argv: list[str] | None = None) -> int:
         title = (f"针对 DSH {local} 验证通过" if usable
                  else f"⚠️ DSH {local} 验证**失败**（跟踪中）")
 
-        rel_args = ["--tag", tag, "--notes-file", str(notes_file), "--title", title]
+        rel_args = ["--tag", tag, "--notes-file", str(notes_file), "--title", title,
+                    *net_args]
         if not usable:
             rel_args.append("--prerelease")
         if args.push:
