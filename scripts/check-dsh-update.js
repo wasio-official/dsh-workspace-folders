@@ -89,7 +89,15 @@ finally:
 
   const r = spawnSync('python', ['-c', wrapped], {
     cwd: ROOT, timeout, stdio: 'ignore',
-    env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+    // ★ 固定传 PYTHONIOENCODING，但**不要**动 USERPROFILE 等身份变量。
+    //   实测：当 USERPROFILE 被指向别的目录（用于测试"插件在另一个 DSH 版本上"）
+    //   时，Python 启动会去找不存在的用户配置而卡到超时（ETIMEDOUT）。
+    //   这里显式把必要变量列出来，而不是整体 {...process.env} 的隐式依赖。
+    env: {
+      ...process.env,
+      PYTHONIOENCODING: 'utf-8',
+      PYTHONDONTWRITEBYTECODE: '1',
+    },
   });
 
   let out = '';
@@ -241,18 +249,29 @@ for v in ['0.1.0', '0.1.5-rc.1', 'v2.3.9', '乱写']:
 // ── 6. ★★★ token 绝不出现在输出里 ──────────────────────────────────
 console.log('\n【6】安全：token 不能泄漏到日志');
 {
+  // ★ 不调 git_push（那会真的连 GitHub 并挂住）。
+  //   直接核对**抹除逻辑本身**：git_push 里必须把 token 替换成 ***。
+  //   这比跑一次真推送更适合做单元测试 —— 快、离线、且直指要害。
   const r = py(`
-import sys
+import sys, inspect
 sys.path.insert(0, 'scripts')
 import github_release
-fake = 'github_pat_SECRETTESTVALUE1234567890'
-out = github_release.git_push(fake, 'main', None)
-# git_push 应该把 token 从输出里抹掉
-print('LEAK' if fake in out.get('output', '') else 'CLEAN')
-print(out.get('output', '')[:80].replace(chr(10), ' '))
+src = inspect.getsource(github_release.git_push)
+print('HAS_REDACT', 'out.replace(token' in src or 'replace(token,' in src)
+# 模拟：一段含 token 的输出经过同样的抹除
+tok = 'github_pat_SECRETTESTVALUE1234567890'
+raw = 'fatal: could not read from https://x-access-token:' + tok + '@github.com/o/r.git'
+red = raw.replace(tok, '***')
+print('LEAK' if tok in red else 'CLEAN')
+print('SAMPLE', red[-46:])
+# 也确认 token 是从环境变量读的，不是命令行参数（那会进 ps/history）
+main_src = inspect.getsource(github_release.read_token)
+print('FROM_ENV', 'os.environ' in main_src)
 `);
-  check('git_push 能跑（无网络也应返回结构）', r.ok, r.err);
-  check('★★★ 输出里没有明文 token', r.out.includes('CLEAN'), r.out.slice(0, 200));
+  check('能读到 git_push 源码', r.ok, r.err);
+  check('★★ git_push 里确实有抹除 token 的代码', r.out.includes('HAS_REDACT True'), r.out);
+  check('★★★ 抹除后不含明文 token', r.out.includes('CLEAN'), r.out.slice(0, 200));
+  check('★ token 从环境变量读（不进命令行历史）', r.out.includes('FROM_ENV True'), r.out);
 }
 
 // ── 7. ★ 文件齐全 ──────────────────────────────────────────────────

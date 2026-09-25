@@ -1,5 +1,5 @@
 {
-  "total": 767,
+  "total": 773,
   "counts": {
     "check-core.js": 61,
     "check-instructions.js": 0,
@@ -16,7 +16,7 @@
     "check-e2e.js": 7,
     "check-inject.js": 10,
     "check-live.js": 15,
-    "check-contracts.js": 29,
+    "check-contracts.js": 33,
     "check-target.js": 33,
     "check-tools-target.js": 26,
     "check-route.js": 63,
@@ -27,7 +27,7 @@
     "check-naming-ascii.js": 29,
     "check-bind-e2e.js": 29,
     "check-install.js": 15,
-    "check-dsh-update.js": 36
+    "check-dsh-update.js": 38
   },
-  "generatedAt": "2026-09-25T13:22:38.739Z"
+  "generatedAt": "2026-09-25T14:00:01.554Z"
 }

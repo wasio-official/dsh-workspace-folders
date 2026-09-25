@@ -307,12 +307,51 @@ console.log('\n【8】客户端 uiWorkspace 的方法签名');
   if (wsText === undefined) {
     console.log('  （找不到 dsh-client-ui-workspace/lib/client.js，跳过真实源码核对）');
   } else {
-    check('★ uiWorkspace.openSession(sessionId) 真实存在',
-      /openSession\(sessionId\)\s*\{/.test(wsText));
-    check('★ uiWorkspace.archiveSession(sessionId) 真实存在（async）',
-      /async archiveSession\(sessionId\)\s*\{/.test(wsText));
+    // ★★ 断言「方法存在且**接受裸 sessionId 字符串**」，而不是「参数名叫 sessionId」。
+    //
+    // 起因：升级到 0.1.7-rc.2 后这两条红了 ——
+    //   openSession(sessionId)          → openSession(target)
+    //   async archiveSession(sessionId) → async archiveSession(sessionId, options = {})
+    //
+    // 但**这不是插件坏了**，是我之前把断言写死在参数名上（过拟合）。
+    // 读两版实现确认调用语义没变：
+    //
+    //   旧 0.1.5-rc.1:  openSession(sessionId) { this.sessions.open(sessionId); }
+    //   新 0.1.7-rc.2:  openSession(target) { this.replaceMain(target, ...); }
+    //                   replaceMain 里 `typeof target === "string" ? ... : target`
+    //
+    // 两版都接受裸字符串，只是新版**额外**支持对象。改名是能力扩展，不是破坏。
+    //
+    // 教训：契约断言要锁**调用语义**（传字符串行不行），
+    //       而不是**形参拼写或内部实现细节**（随时会改）。
+    //
+    // ⚠️ 我第一版改法又踩了同一个坑：加了「实现里必须有
+    //   `typeof target === "string"`」这条 —— 它在旧版上会红，
+    //   因为旧版走的是完全不同的内部路径（sessions.open）。
+    //   那依然是在核对**实现细节**。
+    //   最终改成核对**可观测的调用契约**：首个形参不是对象解构。
+    const openSig = wsText.match(/\bopenSession\s*\(([^)]*)\)\s*\{/);
+    check('★ uiWorkspace.openSession 存在', openSig !== null);
+    check('★★ openSession 的**第一个形参**接受裸值（不是对象解构）',
+      openSig !== null && !/^\s*\{/.test(openSig[1] ?? ''),
+      `首个形参是对象解构 —— 裸 sessionId 可能不再可用：${openSig?.[1]}`);
+    check('★★ openSession 不要求必填的第二个参数',
+      openSig === null || openSig[1].split(',').length === 1,
+      `形参变多了：${openSig?.[1]}`);
+
+    const archSig = wsText.match(/\basync\s+archiveSession\s*\(([^)]*)\)\s*\{/);
+    check('★ uiWorkspace.archiveSession 存在且是 async', archSig !== null);
+    check('★★ archiveSession 的**第一个形参**是裸 sessionId',
+      archSig !== null && /^\s*sessionId\b/.test(archSig[1] ?? ''),
+      `首个形参：${archSig?.[1]}`);
+    // 新增的参数必须是**可选**（有默认值），否则不传就坏 —— 那才是真破坏
+    check('★★ archiveSession 新增的参数是**可选**的（有默认值）',
+      archSig === null || archSig[1].split(',').length === 1
+      || /=\s*/.test(archSig[1].split(',').slice(1).join(',')),
+      `必填参数变多了：${archSig?.[1]}`);
+
     check('★ uiWorkspace.clearArchivedCurrent() 真实存在',
-      /clearArchivedCurrent\(\)\s*\{/.test(wsText));
+      /clearArchivedCurrent\s*\(\s*\)\s*\{/.test(wsText));
   }
 
   check('★ 客户端只用这三个方法',

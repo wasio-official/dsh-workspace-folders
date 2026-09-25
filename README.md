@@ -1,10 +1,10 @@
-# dsh-workspace-folders
+﻿# dsh-workspace-folders
 
 > 给每个 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 对话一个**专属工作子文件夹**，
 > 同时**保住主文件夹的 system prompt 注入**，跨目录访问**逐次申请审批**，
 > 并在会话结束后**归档**、把上下文**交接**给下一个对话。
 
-[![tests](https://img.shields.io/badge/tests-767%20assertions-brightgreen)](#测试)
+[![tests](https://img.shields.io/badge/tests-773%20assertions-brightgreen)](#测试)
 [![node](https://img.shields.io/badge/node-%3E%3D20-blue)](package.json)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -485,7 +485,7 @@ ctx.workspaceRegistry.archivedSessionIds          // 已归档集合
 npm run check
 ```
 
-**767 项断言**，覆盖 28 个套件：
+**773 项断言**，覆盖 28 个套件：
 
 | 套件 | 断言数 | 覆盖 |
 |---|---|---|
@@ -496,7 +496,7 @@ npm run check
 | `check-route.js` | 63 | **宿主只读路由 + 信任围栏 + fail-closed + 当前会话绑定状态 + 新建名字规范化** |
 | `check-target.js` | 33 | **`target` 解析：复用/新建/不去重/拒绝逃逸** |
 | `check-client.js` | 33 | 客户端插件让位顺序、归属判定、降级容错 |
-| `check-contracts.js` | 29 | **逐个核对服务方法契约（参数/返回值/字段名）** |
+| `check-contracts.js` | 33 | **逐个核对服务方法契约（参数/返回值/字段名）** |
 | `check-bind-e2e.js` | 29 | **端到端绑定到已有项目**（含改绑、幂等、原文件不受损） |
 | `check-journal.js` | 27 | log 写入、去抖、注入转义、`autoBind` |
 | `check-tools-target.js` | 26 | **从工具注册表真的调用 `workspace_bind({target})`** |
@@ -504,7 +504,7 @@ npm run check
 | `check-bind-route.js` | 34 | **写路由：路径逃逸、体上限、围栏、fail-closed、绑定已存在目录不改名** |
 | `check-picker.js` | 80 | **直接驱动 client.js 的真组件：点击、防连点、占用态视觉、新建工作文件夹、重开对话不追问、布局几何** |
 | `check-install.js` | 15 | **按真实 loader 路径重放一次安装** |
-| `check-dsh-update.js` | 36 | **DSH 版本适配脚本：版本比较语义、README 正则、Release notes 两种形态、token 不泄漏** |
+| `check-dsh-update.js` | 38 | **DSH 版本适配脚本：版本比较语义、README 正则、Release notes 两种形态、token 不泄漏** |
 | `check-live.js` | 15 | **真实加载后真的执行两个斜杠命令 + 两条路由** |
 | `check-restart-would-fix.js` | 8 | **装配验证：重启后 /bind 真的会注册** |
 | `check-rebind.js` | 25 | **改绑：严格单一归属、不自建重复目录、隐藏插件自身** |

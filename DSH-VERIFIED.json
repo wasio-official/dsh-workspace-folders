@@ -2,7 +2,10 @@
   "dsh": "0.1.5-rc.1",
   "verifiedAt": "2026-09-25T13:23:25Z",
   "node": "v24.18.0",
-  "assertions": 767,
+  "assertions": 773,
   "suites": 28,
-  "note": "插件不 import 任何 @deepseek-ai 包，只依赖 Cordis 服务契约，因此跨 DSH 版本通常仍可用。此文件记录**最后一次真实验证**的目标版本。"
+  "note": "插件不 import 任何 @deepseek-ai 包，只依赖 Cordis 服务契约。此文件记录最后一次真实验证的目标版本；alsoVerifiedOn 列出额外在隔离目录里验证过、但本机未安装的版本。",
+  "alsoVerifiedOn": [
+    "0.1.7-rc.2"
+  ]
 }
