@@ -1,0 +1,27 @@
+{
+  "name": "dsh-workspace-folders-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "dsh-workspace-folders 的浏览器侧：发现同文件夹的活跃对话时跳转过去并归档自己（需求⑤）",
+  "type": "module",
+  "main": "client.js",
+  "exports": {
+    "./client": "./client.js"
+  },
+  "files": [
+    "client.js"
+  ],
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-api-session-controller",
+        "dsh-workspace-folders"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2"
+  }
+}

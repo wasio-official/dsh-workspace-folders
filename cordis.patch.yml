@@ -1,0 +1,115 @@
+# dsh-workspace-folders 安装补丁
+#
+# ⚠ 本方案交付时**未执行任何安装**。
+#
+# ★ 只有**一条**补丁。上一版要求的第二条（改 agent-instructions 的
+#   projectRootMarkers）已经取消 —— 改用「镜像主文件夹指令到 $DSH_HOME」的
+#   免配置方案，你不需要动 DSH 自带的任何插件。
+#
+# 应用位置：%USERPROFILE%\.dsh\profiles\web\cordis.patch.yml
+# （该文件目前是 "顶层 YAML 数组"，把下面这段**追加**到末尾。）
+#
+# ★★ 关于 name：必须是 `file://` URL，**不能**写包名。
+#
+#   本插件没有发布到 npm（package.json 里 private: true），
+#   而 loader 对「非 . 开头」的 name 一律走 `import(name)` ——
+#   写包名会去 npm 找、找不到，导致**整个插件树加载失败**。
+#
+#   相对路径也不行：profile 在 C:、仓库在 D: 时跨盘，
+#   `path.relative` 返回的是绝对路径（D:\...）而非相对路径。
+#   只有 file:// URL 可靠。注意是**三个斜杠**（协议两个 + 根一个），
+#   且盘符后用正斜杠。
+#
+# 安装后重启 dsh web。按本工作区已记录的坑：改配置后先杀调度器（切断自愈）
+# → 再清子进程 → 最后用新代码拉起；且不要直接杀承载当前会话的 3080 进程。
+#
+# 详细步骤与排错见 docs/INSTALL.md
+
+- insert:
+    - id: workspace-folders
+      name: 'file:///D:/Wasio/Workspace/dsh-workspace-folders/src/index.js'
+      config:
+        # 主工作区根 —— **保留 system prompt 的那一层**。
+        # 该目录下的 AGENTS.md / CLAUDE.md 会被同步到 DSH 全局指令位，
+        # 使每个子文件夹会话都能读到它。留空则取 DSH 进程的启动目录。
+        workspaceRoot: 'D:/Wasio/Workspace'
+
+        # 会话首次活动时自动创建并绑定子文件夹。
+        autoBind: true
+
+        # ★ 免补丁保住主文件夹 prompt 的机制：把主文件夹的 AGENTS.md /
+        #   CLAUDE.md 镜像到 $DSH_HOME/AGENTS.md。
+        #
+        #   为什么这样能work：DSH 的指令发现里，$DSH_HOME/AGENTS.md 是**唯一
+        #   无条件加载**的文件 —— 不依赖项目根标记、不依赖 cwd，也不会被
+        #   子文件夹里的同名文件截断。所以零配置即可继承。
+        #   建议保持 true；关掉它子文件夹会话就会丢失主文件夹指令。
+        mirrorInstructions: true
+
+        # $DSH_HOME/AGENTS.md 已存在、且不是本插件写的时候，是否覆盖。
+        # 默认 false：宁可不同步，也不擅自覆盖你自己维护的全局指令。
+        # 若你本来就有全局 AGENTS.md 并且希望主文件夹的覆盖它，改为 true。
+        overwriteGlobalInstructions: false
+
+        # 显式指定 DSH home。留空则按 DSH_HOME 环境变量或 ~/.dsh 解析。
+        dshHome: ''
+
+        # 子文件夹里写一份 INHERITED.md，说明这个目录的来历与指令继承关系。
+        writeInheritedNote: true
+
+        # ★ 每轮对话结束后，把会话内容投影成完整 log 写进该对话的子文件夹
+        #   （`<子文件夹>/log/NNNN-<sessionId>.md`）。
+        #
+        #   投影会丢掉两类高噪声事件：逐 token 增量、未提交的失败尝试；
+        #   但保留正文、工具调用（含参数与结果）、压缩标记、被中断的消息 ——
+        #   所以是「去重复」而非「丢证据」。压缩标记进主阅读流，
+        #   因为它是判断「上下文枯竭导致退化」的锚点。
+        writeJournal: true
+
+        # 写 log 的去抖时长（毫秒）。密集轮次只在静默这么久后写一次盘。
+        journalDebounceMs: 4000
+
+        # 单份 log 的字节上限。
+        maxJournalBytes: 2000000
+
+        # ── 对话归档（需求③「工作完该任务后自动清除自身」）──────────
+        #
+        # 用归档而非删除：DSH 的 ctx.workspaceRegistry.archiveSession()
+        # 会把对话从侧边栏隐藏，但**日志与内容全部保留**。
+        # （DSH 没有删除会话的 API；硬删数据目录还会留下删不掉的幽灵条目。）
+        #
+        # 'confirm'（推荐）—— 模型判断「这段可以收了」时，弹一个**带按钮的卡片**
+        #     征求确认。你点「允许一次」才归档，点「拒绝」什么都不发生。
+        #     零打字，且决定权始终在你手里。
+        # 'manual'  —— 不主动弹卡片，只有你敲 /workspace-archive 才执行。
+        # 'off'     —— 关闭归档功能（workspace_archive 工具也不注册）。
+        #
+        # ⚠️ 归档**永不自动执行**：无论哪一档都必须经过你的确认。
+        # ⚠️ 需要 approval.policy = 'ask'（即 workspace-write 模式）。
+        #    在 danger-full-access 下 policy 被硬编码为 never，
+        #    卡片不会弹出，归档会被静默拒绝。
+        archiveMode: 'confirm'
+
+        # ── 继承（需求④⑤）─────────────────────────────────────────
+        #
+        # 绑定时检查子文件夹里有没有**别的**会话：
+        #   - 已停止的老对话 → 归档它，并把它的 log 提炼成交接摘要（④）
+        #   - 还活着的老对话 → 客户端插件跳过去并归档自己（⑤）
+        #
+        # 关掉则只做纯绑定，不碰任何历史会话。
+        inheritOnBind: true
+
+        # 交接摘要（写进子文件夹 AGENTS.md）最多保留多少条要点。
+        # 这份摘要会**进入新对话的系统提示**，所以要克制。
+        handoffMaxBullets: 24
+
+        # 出界访问策略：
+        #   'ask'  —— 每次出界都弹窗申请（一次性授权），符合「要经过我的申请」。
+        #   'deny' —— 一律拒绝，不打扰。
+        outsideAccess: 'ask'
+
+        # 界内（本对话子文件夹内）免审批。
+        # 注意主工作区根**不在**界内 —— 出界一律申请。
+        allowInsideWithoutAsk: true
+
+        maxToolResultBytes: 8000

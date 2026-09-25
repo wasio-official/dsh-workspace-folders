@@ -1,0 +1,88 @@
+{
+  "name": "dsh-workspace-folders",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "给每个 DSH 对话一个专属工作子文件夹，保住主文件夹的 system prompt 注入，跨目录访问需逐次审批，并在会话结束时归档、把上下文交接给新对话。",
+  "author": "Wasio",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./client/client.js"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "immediately": false
+    }
+  },
+  "files": [
+    "src",
+    "client",
+    "docs",
+    "scripts",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check:core": "node scripts/check-core.js",
+    "check:instructions": "node scripts/check-instructions.js",
+    "check:marker": "node scripts/check-marker-strategy.js",
+    "check:nopatch": "node scripts/check-nopatch.js",
+    "check:load": "node scripts/check-load.js",
+    "check:journal": "node scripts/check-journal.js",
+    "check:archiver": "node scripts/check-archiver.js",
+    "check:inherit": "node scripts/check-inherit.js",
+    "check:client": "node scripts/check-client.js",
+    "check:e2e": "node scripts/check-e2e.js",
+    "check:inject": "node scripts/check-inject.js",
+    "check:install": "node scripts/check-install.js",
+    "count": "node scripts/count-assertions.js",
+    "check:readme": "node scripts/check-readme.js",
+    "check": "node scripts/check-core.js && node scripts/check-instructions.js && node scripts/check-marker-strategy.js && node scripts/check-nopatch.js && node scripts/check-load.js && node scripts/check-journal.js && node scripts/check-archiver.js && node scripts/check-inherit.js && node scripts/check-client.js && node scripts/check-client-discovery.js && node scripts/check-client-load.js && node scripts/check-picker.js && node scripts/check-e2e.js && node scripts/check-inject.js && node scripts/check-live.js && node scripts/check-target.js && node scripts/check-tools-target.js && node scripts/check-route.js && node scripts/check-bind-route.js && node scripts/check-restart-would-fix.js && node scripts/check-rebind.js && node scripts/check-persistence.js && node scripts/check-naming-ascii.js && node scripts/check-bind-e2e.js && node scripts/check-contracts.js && node scripts/check-install.js && node scripts/check-readme.js",
+    "check:live": "node scripts/check-live.js",
+    "check:contracts": "node scripts/check-contracts.js",
+    "check:target": "node scripts/check-target.js",
+    "check:bind": "node scripts/check-bind-e2e.js",
+    "check:toolstarget": "node scripts/check-tools-target.js",
+    "check:clientload": "node scripts/check-client-load.js",
+    "check:picker": "node scripts/check-picker.js",
+    "check:discovery": "node scripts/check-client-discovery.js",
+    "check:route": "node scripts/check-route.js",
+    "profile:apply": "node scripts/apply-profile.js",
+    "profile:check": "node scripts/apply-profile.js --check",
+    "check:bind-route": "node scripts/check-bind-route.js",
+    "check:restart": "node scripts/check-restart-would-fix.js",
+    "diagnose": "node scripts/diagnose-live.js",
+    "check:rebind": "node scripts/check-rebind.js",
+    "check:persistence": "node scripts/check-persistence.js",
+    "check:naming": "node scripts/check-naming-ascii.js"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-tools": "^0.1.5-rc.1"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "cordis-plugin",
+    "workspace",
+    "sandbox",
+    "session",
+    "agent",
+    "context-handoff"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wasio-official/dsh-workspace-folders.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wasio-official/dsh-workspace-folders/issues"
+  },
+  "homepage": "https://github.com/wasio-official/dsh-workspace-folders#readme"
+}

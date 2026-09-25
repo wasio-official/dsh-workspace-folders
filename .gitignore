@@ -1,0 +1,31 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.tsbuildinfo
+
+# 插件运行时写出的状态（**绝不提交**）
+# 这些是每个用户本地的会话绑定与 log，含隐私内容。
+.dsh-workspace-folders.json
+.dsh-session.json
+.dsh-workspace-folders-mirror.json
+log/
+archive/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+
+# 日志与临时文件
+*.log
+npm-debug.log*
+_probe/
+
+# 每个对话自己的工作文件夹（本插件在本目录里跑时生成的）
+# `INHERITED.md` 是**某一次对话的**上下文交接说明，不是插件的一部分。
+INHERITED.md
+cordis.patch.yml.backup-*
+*.before-merge

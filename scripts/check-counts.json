@@ -1,0 +1,32 @@
+{
+  "total": 731,
+  "counts": {
+    "check-core.js": 61,
+    "check-instructions.js": 0,
+    "check-marker-strategy.js": 0,
+    "check-nopatch.js": 6,
+    "check-load.js": 44,
+    "check-journal.js": 27,
+    "check-archiver.js": 43,
+    "check-inherit.js": 51,
+    "check-client.js": 33,
+    "check-client-discovery.js": 8,
+    "check-client-load.js": 32,
+    "check-picker.js": 80,
+    "check-e2e.js": 7,
+    "check-inject.js": 10,
+    "check-live.js": 15,
+    "check-contracts.js": 29,
+    "check-target.js": 33,
+    "check-tools-target.js": 26,
+    "check-route.js": 63,
+    "check-bind-route.js": 34,
+    "check-restart-would-fix.js": 8,
+    "check-rebind.js": 25,
+    "check-persistence.js": 23,
+    "check-naming-ascii.js": 29,
+    "check-bind-e2e.js": 29,
+    "check-install.js": 15
+  },
+  "generatedAt": "2026-09-25T08:48:25.098Z"
+}
