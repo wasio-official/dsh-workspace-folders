@@ -433,10 +433,44 @@ def main(argv: list[str] | None = None) -> int:
 
         # 版本号：不可用时也发，但要标 prerelease —— 让使用者一眼看出
         # "这不是一个可用版本"，而不是以为升级就能用。
+        #
+        # ★★ 以**已存在的 tag** 为准递推，而不是 package.json。
+        #
+        # 原因（修过的真 bug）：package.json 的 version 从来没人写回，
+        # 一直停在 0.1.0 → 每次都推导出 v0.1.1 → 第二次发版会
+        # **静默覆盖**上一个 Release（make_release 对已存在 tag 是 PATCH）。
+        # 版本管理就此断掉 —— 而表面上一切"成功"。
         pkg = read_json(PACKAGE_JSON)
-        tag = next_tag(pkg.get("version", "0.1.0"))
+        existing_tag = ""
+        try:
+            code3, tags_out = sh(
+                [sys.executable, str(HERE / "github_release.py"),
+                 "--list-tags", *net_args],
+                timeout=120,
+            )
+            tags = json.loads(tags_out[tags_out.index("["):])
+            if isinstance(tags, list):
+                existing_tag = ";".join(tags)
+        except (ValueError, json.JSONDecodeError):
+            existing_tag = ""
+
+        existing = [t for t in existing_tag.split(";") if t] if existing_tag else []
+        tag = next_tag(pkg.get("version", "0.1.0"), existing)
         title = (f"针对 DSH {local} 验证通过" if usable
                  else f"⚠️ DSH {local} 验证**失败**（跟踪中）")
+
+        # ★ 把新版本写回 package.json —— 之前的漏洞就在这一步缺失。
+        #   写回后 tag 与 package.json 才不会漂移。
+        new_version = tag.lstrip("v")
+        if pkg.get("version") != new_version:
+            pkg["version"] = new_version
+            PACKAGE_JSON.write_text(
+                json.dumps(pkg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
+            )
+            sh(["git", "add", "package.json"])
+            sh(["git", "commit", "-m", f"chore: 版本号 → {new_version}"])
+            if not args.json:
+                print(f"  · package.json 版本 → {new_version}（已提交）")
 
         rel_args = ["--tag", tag, "--notes-file", str(notes_file), "--title", title,
                     *net_args]

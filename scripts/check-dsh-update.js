@@ -230,20 +230,58 @@ print(make_release_notes(ok, {'local': '0.1.5-rc.1'}, usable=True))
   check('★ 列出了版本要求', r.out.includes('DSH: `0.1.5-rc.1`'));
 }
 
-// ── 5. ★ tag 推导 ──────────────────────────────────────────────────
+// ── 5. ★★ tag 推导（修过真 bug：会推导出重复 tag）────────────────────
 console.log('\n【5】下一个 tag 推导');
 {
   const r = py(`
 import sys
 sys.path.insert(0, 'scripts')
 from github_release import next_tag
+# 无 tag 时退回按 package.json
 for v in ['0.1.0', '0.1.5-rc.1', 'v2.3.9', '乱写']:
-    print(v + ' -> ' + next_tag(v))
+    print('FALLBACK ' + v + ' -> ' + next_tag(v, []))
+# ★★ 有 tag 时必须以 tag 为准
+print('A ' + next_tag('0.1.0', ['v0.1.1']))
+print('B ' + next_tag('0.1.0', ['v0.1.1', '0.1.2']))
+print('C ' + next_tag('0.1.0', ['v0.1.1', '乱写', 'v0.2.0']))
 `);
   check('tag 推导能跑', r.ok, r.err);
-  check('0.1.0 → v0.1.1', r.out.includes('0.1.0 -> v0.1.1'), r.out);
-  check('v2.3.9 → v2.3.10', r.out.includes('v2.3.9 -> v2.3.10'), r.out);
-  check('无法解析时给兜底值', r.out.includes('乱写 -> v0.1.1'), r.out);
+  check('0.1.0（无 tag）→ v0.1.1', r.out.includes('FALLBACK 0.1.0 -> v0.1.1'), r.out);
+  check('v2.3.9（无 tag）→ v2.3.10', r.out.includes('FALLBACK v2.3.9 -> v2.3.10'), r.out);
+  check('无法解析时给兜底值', r.out.includes('FALLBACK 乱写 -> v0.1.1'), r.out);
+
+  // ★★★ 这几条是本次真 bug 的回归锁。
+  //
+  // 起因：package.json 的 version 从不写回，一直停在 0.1.0，
+  // 于是每次都推导出 v0.1.1 → 第二次发版**静默覆盖**上一个 Release。
+  // 版本管理表面正常，实则丢历史。
+  check('★★★ 已有 v0.1.1 时推进到 v0.1.2（不重复）',
+    r.out.includes('A v0.1.2'), r.out);
+  check('★★★ 已有 v0.1.1/0.1.2 时推进到 v0.1.3',
+    r.out.includes('B v0.1.3'), r.out);
+  check('★★★ 混入非法 tag 时取最大合法版本',
+    r.out.includes('C v0.2.1'), r.out);
+}
+
+// ── 5b. ★★★ 拒绝覆盖已有 Release ───────────────────────────────────
+console.log('\n【5b】已有 Release 必须拒绝覆盖（保护版本历史）');
+{
+  const r = py(`
+import sys, inspect
+sys.path.insert(0, 'scripts')
+import github_release
+src = inspect.getsource(github_release.make_release)
+sig = inspect.signature(github_release.make_release)
+print('HAS_FORCE', 'force_update' in sig.parameters)
+print('DEFAULT_FALSE', sig.parameters['force_update'].default is False)
+print('GUARDS', 'not force_update' in src)
+print('MSG', '拒绝覆盖' in src)
+`);
+  check('能读 make_release 源码', r.ok, r.err);
+  check('★★ make_release 有 force_update 开关', r.out.includes('HAS_FORCE True'), r.out);
+  check('★★★ 默认是**不覆盖**（False）', r.out.includes('DEFAULT_FALSE True'), r.out);
+  check('★★★ 有"未显式允许就拒绝"的分支', r.out.includes('GUARDS True'), r.out);
+  check('★★ 拒绝时给出明确原因', r.out.includes('MSG True'), r.out);
 }
 
 // ── 6. ★★★ token 绝不出现在输出里 ──────────────────────────────────

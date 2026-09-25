@@ -4,7 +4,7 @@
 > 同时**保住主文件夹的 system prompt 注入**，跨目录访问**逐次申请审批**，
 > 并在会话结束后**归档**、把上下文**交接**给下一个对话。
 
-[![tests](https://img.shields.io/badge/tests-773%20assertions-brightgreen)](#测试)
+[![tests](https://img.shields.io/badge/tests-781%20assertions-brightgreen)](#测试)
 [![node](https://img.shields.io/badge/node-%3E%3D20-blue)](package.json)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -485,7 +485,7 @@ ctx.workspaceRegistry.archivedSessionIds          // 已归档集合
 npm run check
 ```
 
-**773 项断言**，覆盖 28 个套件：
+**781 项断言**，覆盖 28 个套件：
 
 | 套件 | 断言数 | 覆盖 |
 |---|---|---|
@@ -504,7 +504,7 @@ npm run check
 | `check-bind-route.js` | 34 | **写路由：路径逃逸、体上限、围栏、fail-closed、绑定已存在目录不改名** |
 | `check-picker.js` | 80 | **直接驱动 client.js 的真组件：点击、防连点、占用态视觉、新建工作文件夹、重开对话不追问、布局几何** |
 | `check-install.js` | 15 | **按真实 loader 路径重放一次安装** |
-| `check-dsh-update.js` | 38 | **DSH 版本适配脚本：版本比较语义、README 正则、Release notes 两种形态、token 不泄漏** |
+| `check-dsh-update.js` | 46 | **DSH 版本适配脚本：版本比较语义、README 正则、Release notes 两种形态、token 不泄漏** |
 | `check-live.js` | 15 | **真实加载后真的执行两个斜杠命令 + 两条路由** |
 | `check-restart-would-fix.js` | 8 | **装配验证：重启后 /bind 真的会注册** |
 | `check-rebind.js` | 25 | **改绑：严格单一归属、不自建重复目录、隐藏插件自身** |

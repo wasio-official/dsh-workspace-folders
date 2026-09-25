@@ -206,8 +206,16 @@ def git_push(token: str, branch: str = "main", proxy: str | None = None) -> dict
 
 
 def make_release(token: str, tag: str, name: str, notes: str,
-                 proxy: str | None, prerelease: bool = False) -> dict:
+                 proxy: str | None, prerelease: bool = False,
+                 force_update: bool = False) -> dict:
     """创建 GitHub Release（会自动建 tag）。
+
+    ★★ 默认**拒绝**覆盖已存在的 tag —— 这是修过的真 bug。
+    早前对「tag 已存在」是直接 PATCH 更新，于是当版本推导不前进时
+    （package.json 从不写回），第二次发版会把**上一个 Release 静默改掉**。
+    版本管理看似正常，实则丢历史。
+
+    现在：已存在 → 返回失败并说明，除非显式 `force_update=True`。
 
     @param token: PAT。
     @param tag: 形如 `v0.1.1`。
@@ -215,7 +223,8 @@ def make_release(token: str, tag: str, name: str, notes: str,
     @param notes: 正文（Markdown）。
     @param proxy: 代理。
     @param prerelease: 是否标为预发布。
-    @returns: `{ok, url, detail}`。
+    @param force_update: 显式允许覆盖已有 Release。
+    @returns: `{ok, url, tag, detail}`。
     """
     st, data = api_call("POST", f"/repos/{REPO}/releases", token, proxy, {
         "tag_name": tag,
@@ -226,33 +235,96 @@ def make_release(token: str, tag: str, name: str, notes: str,
     })
     if st == 201:
         return {"ok": True, "url": data.get("html_url"), "tag": tag}
-    # 已存在 → 更新而不是失败（让脚本可重复运行）。
-    if st == 422 and isinstance(data, dict):
-        for e in data.get("errors", []):
-            if e.get("field") == "tag_name" and "already_exists" in str(e.get("code")):
-                st2, rel = api_call("GET", f"/repos/{REPO}/releases/tags/{tag}",
-                                    token, proxy)
-                if st2 == 200:
-                    rid = rel.get("id")
-                    st3, upd = api_call("PATCH", f"/repos/{REPO}/releases/{rid}",
-                                        token, proxy, {"name": name, "body": notes})
-                    if st3 == 200:
-                        return {"ok": True, "url": upd.get("html_url"),
-                                "tag": tag, "updated": True}
+
+    already = (
+        st == 422 and isinstance(data, dict)
+        and any(e.get("field") == "tag_name" and "already_exists" in str(e.get("code"))
+                for e in data.get("errors", []))
+    )
+
+    if already and not force_update:
+        # ★ 明确指出「拒绝覆盖」，而不是含糊失败。
+        st2, rel = api_call("GET", f"/repos/{REPO}/releases/tags/{tag}", token, proxy)
+        url = rel.get("html_url") if isinstance(rel, dict) else None
+        return {
+            "ok": False,
+            "error": (f"tag {tag} 已存在，**拒绝覆盖**（保护历史版本）。"
+                      f"如需覆盖请加 --force-update。"),
+            "existingRelease": url,
+            "tag": tag,
+        }
+
+    if already and force_update:
+        st2, rel = api_call("GET", f"/repos/{REPO}/releases/tags/{tag}", token, proxy)
+        if st2 == 200:
+            rid = rel.get("id")
+            st3, upd = api_call("PATCH", f"/repos/{REPO}/releases/{rid}",
+                                token, proxy, {"name": name, "body": notes})
+            if st3 == 200:
+                return {"ok": True, "url": upd.get("html_url"),
+                        "tag": tag, "updated": True}
     return {"ok": False, "detail": json.dumps(data, ensure_ascii=False)[:400]}
 
 
-def next_tag(current: str) -> str:
+def next_tag(current: str, existing: list[str] | None = None) -> str:
     """由当前版本推出下一个 patch 版本号。
 
-    @param current: 形如 `0.1.0`。
-    @returns: 形如 `v0.1.1`。
+    ## ★ 为什么要看 existing（这是修过的真 bug）
+
+    早前只按 `next_tag(package.json.version)` 推导。但**没有任何代码把
+    新版本写回 package.json**，于是：
+
+        package.json 一直是 0.1.0
+        → 每次推导都得 v0.1.1
+        → 第二次发版会拿到同一个 tag
+
+    后果不是报错，而是**静默覆盖上一个 Release**（`make_release` 里
+    对「tag 已存在」的处理是 PATCH 更新）。版本管理就此断掉。
+
+    现在改进：**以已存在的 tag 为准**递推，保证单调递增且不撞车。
+
+    @param current: `package.json` 里的版本，如 `0.1.0`。
+    @param existing: 已存在的 tag 列表（如 `['v0.1.1']`）。传了就按它递推。
+    @returns: 形如 `v0.1.2`。
     """
+    # 从已有 tag 里取最大的语义化版本
+    def parse_tag(t: str) -> tuple[int, int, int] | None:
+        m = re.match(r"^v?(\d+)\.(\d+)\.(\d+)$", t.strip())
+        return tuple(int(x) for x in m.groups()) if m else None  # type: ignore[return-value]
+
+    parsed = [p for p in (parse_tag(t) for t in (existing or [])) if p is not None]
+    if parsed:
+        a, b, c = max(parsed)
+        return f"v{a}.{b}.{c + 1}"
+
+    # 没有可用 tag → 退回按 package.json 推导
     m = re.match(r"^v?(\d+)\.(\d+)\.(\d+)", current.strip())
     if not m:
         return "v0.1.1"
     a, b, c = (int(x) for x in m.groups())
     return f"v{a}.{b}.{c + 1}"
+
+
+def list_tags(token: str, proxy: str | None) -> list[str]:
+    """列出仓库里已有的 tag（分页取全）。
+
+    @param token: PAT。
+    @param proxy: 代理。
+    @returns: tag 名列表；失败返回空列表。
+    """
+    names: list[str] = []
+    page = 1
+    while page <= 10:  # 最多 1000 个 tag，够用
+        st, data = api_call(
+            "GET", f"/repos/{REPO}/tags?per_page=100&page={page}", token, proxy,
+        )
+        if st != 200 or not isinstance(data, list) or not data:
+            break
+        names.extend(t["name"] for t in data if isinstance(t, dict) and "name" in t)
+        if len(data) < 100:
+            break
+        page += 1
+    return names
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -267,6 +339,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--check-token", action="store_true", help="只检查 token 权限")
     ap.add_argument("--push", action="store_true", help="推送 main")
     ap.add_argument("--tag", help="要发布的 tag，如 v0.1.1")
+    ap.add_argument("--list-tags", action="store_true", help="列出已有 tag（JSON）")
+    ap.add_argument("--force-update", action="store_true",
+                    help="允许覆盖已存在的 Release（默认拒绝，避免版本管理断掉）")
     ap.add_argument("--notes-file", help="Release 正文文件")
     ap.add_argument("--title", help="Release 标题")
     ap.add_argument("--prerelease", action="store_true")
@@ -279,6 +354,11 @@ def main(argv: list[str] | None = None) -> int:
         msg = {"ok": False, "error": "没有 token：请设置环境变量 GITHUB_TOKEN"}
         print(json.dumps(msg, ensure_ascii=False) if args.json else msg["error"])
         return 2
+
+    # --list-tags 是给别的脚本消费的（要纯 JSON 数组），先处理并退出。
+    if args.list_tags:
+        print(json.dumps(list_tags(token, proxy), ensure_ascii=False))
+        return 0
 
     result: dict = {}
 
@@ -295,6 +375,7 @@ def main(argv: list[str] | None = None) -> int:
         result["release"] = make_release(
             token, args.tag, args.title or f"DSH 适配 {args.tag}",
             notes, proxy, prerelease=args.prerelease,
+            force_update=args.force_update,
         )
 
     if args.json:
